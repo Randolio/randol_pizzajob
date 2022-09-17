@@ -60,15 +60,7 @@ function ClockInPed()
     end
 end
 
-AddEventHandler('onResourceStart', function(resource)
-    if GetCurrentResourceName() == resource then
-        PlayerJob = QBCore.Functions.GetPlayerData().job
-        ClockInPed()
-    end
-end)
-
 RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
-    PlayerData = QBCore.Functions.GetPlayerData()
     ClockInPed()
 end)
 
