@@ -68,7 +68,6 @@ AddEventHandler('onResourceStart', function(resource)
 end)
 
 RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
-    PlayerData = QBCore.Functions.GetPlayerData()
     ClockInPed()
 end)
 
