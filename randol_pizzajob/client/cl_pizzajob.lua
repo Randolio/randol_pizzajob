@@ -67,14 +67,12 @@ AddEventHandler('onResourceStart', function(resource)
     end
 end)
 
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded')
-AddEventHandler('QBCore:Client:OnPlayerLoaded', function()
+RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
     PlayerData = QBCore.Functions.GetPlayerData()
     ClockInPed()
 end)
 
-RegisterNetEvent('QBCore:Client:OnPlayerUnload')
-AddEventHandler('QBCore:Client:OnPlayerUnload', function()
+RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
     exports['qb-target']:RemoveZone("deliverZone")
     RemoveBlip(JobBlip)
     Hired = false
@@ -142,8 +140,7 @@ function PullOutVehicle()
 end
 
 
-RegisterNetEvent('randol_pizzajob:client:startJob')
-AddEventHandler('randol_pizzajob:client:startJob', function()
+RegisterNetEvent('randol_pizzajob:client:startJob', function()
     if not Hired then
         PullOutVehicle()
     end
