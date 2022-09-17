@@ -124,7 +124,7 @@ function PullOutVehicle()
                         label = "Take Pizza",
                         action = function(entity) TakePizza() end,
                         canInteract = function() 
-                            return Hired and not HasPizza
+                            return Hired and activeOrder and not HasPizza
                         end,
                         
                     },
