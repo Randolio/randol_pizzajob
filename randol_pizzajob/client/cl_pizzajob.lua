@@ -167,6 +167,11 @@ RegisterNetEvent('randol_pizzajob:client:deliverPizza', function()
             Wait(1000)
             ClearPedSecondaryTask(PlayerPedId())
             QBCore.Functions.Notify("Pizza Delivered. Please wait for your next delivery!", "success") 
+
+            if Config.PayEveryStop then
+                TriggerServerEvent('randol_pizzajob:server:PayEveryStop')
+            end
+            
             SetTimeout(5000, function()    
                 NextDelivery()
             end)

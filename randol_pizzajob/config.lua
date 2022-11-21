@@ -14,6 +14,8 @@ Config.FuelScript = 'cdn-fuel' -- The fuel script you are using
 
 Config.PayEveryStop = true -- Whether you also want to pay the player after each delivery
 
+Config.PayEveryStopAmount = 5 -- Amount you want to pay them after each stop | If empty will pay 5 dollars
+
 Config.JobLocs = { -- Random delivery houses.
     vector3(224.11, 513.52, 140.92),
     vector3(57.51, 449.71, 147.03),
