@@ -1,16 +1,18 @@
 Config = {}
 
-Config.BossModel = "u_m_y_party_01"
+Config.BossModel = "u_m_y_party_01" -- Ped model of the boss ( https://docs.fivem.net/docs/game-references/ped-models/ )
 
 Config.Payment = 105 -- Per Delivery. Totals up and get paid when you return the vehicle.
 
 Config.BossCoords = vector4(538.35, 101.8, 95.54, 164.05) -- The Blip also uses these coords.
 
-Config.Vehicle = "surge"
+Config.Vehicle = "surge" -- Vehicle you will be delivering in
 
-Config.VehicleSpawn = vector4(535.3, 95.58, 96.32, 159.15)
+Config.VehicleSpawn = vector4(535.3, 95.58, 96.32, 159.15) -- Where the vehicle will spawn including it's direction
 
-Config.FuelScript = 'cdn-fuel'
+Config.FuelScript = 'cdn-fuel' -- The fuel script you are using
+
+Config.PayEveryStop = true -- Whether you also want to pay the player after each delivery
 
 Config.JobLocs = { -- Random delivery houses.
     vector3(224.11, 513.52, 140.92),
