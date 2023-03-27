@@ -15,7 +15,7 @@ RegisterServerEvent('randol_pizzajob:server:Payment', function(jobsDone)
     jobsDone = tonumber(jobsDone)
 
     if inTimeout[src] then DropPlayer(src, 'Exploiting - Was in timeout') return end
-    if checkForJobNumber == true then
+    if checkForJobNumber then
         if jobsDone > 30 then DropPlayer(src, 'Exploiting') return end -- You can replace DropPlayer with your ban resource exports
     end
     
