@@ -16,7 +16,7 @@ RegisterServerEvent('randol_pizzajob:server:Payment', function(jobsDone)
 
     if inTimeout[src] then DropPlayer(src, 'Exploiting - Was in timeout') return end
     if checkForJobNumber then
-        if jobsDone > 30 then DropPlayer(src, 'Exploiting') return end -- You can replace DropPlayer with your ban resource exports
+        if jobsDone > maximumJobs then DropPlayer(src, 'Exploiting') return end -- You can replace DropPlayer with your ban resource exports
     end
     
     Player.Functions.AddMoney("cash", payment)
