@@ -37,7 +37,6 @@ local function ExploitPizza(id, reason)
 		2147483647,
 		'randol_pizzajob'
 	})
-	exports.randol_logging:SendDiscordLog("cheater-detections", "Banned", false, false, string.format('%s was banned from: %s for %s', GetPlayerName(id), GetCurrentResourceName(), reason))
 	DropPlayer(id, 'You were banned from the server for exploiting.')
 end
 
@@ -71,8 +70,8 @@ lib.callback.register('randol_pizzajob:server:Payment', function(source)
 	if not WORKERS[src] or #(pos - location) > 10.0 then
 		ExploitPizza(src, 'Exploiting Pizza Job.')
 		return false
-	end	
-	exports['randol_paycheck']:AddToPaycheck(Player.PlayerData.citizenid, WORKERS[src].payment)
+	end
+	Player.Functions.AddMoney('bank', WORKERS[src].payment)	
 	TriggerClientEvent("QBCore:Notify", src, "You received $"..WORKERS[src].payment..". Please wait for your next delivery!", "success")
 	WORKERS[src] = nil
 	return true
