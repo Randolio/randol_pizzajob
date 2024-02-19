@@ -1,6 +1,4 @@
-# Pizza delivery script for QBCore.
-
-Original Script - https://github.com/ZAUB1/ESX-Pizza
+## Randolio: Pizza Delivery Job
 
 Forked From MrEvilGamer - https://github.com/MrEvilGamer/qb-pizzajob
 
