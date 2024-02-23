@@ -34,33 +34,26 @@ lib.callback.register('randol_pizzajob:server:spawnVehicle', function(source)
 
     local src = source
     local netid = createPizzaVehicle(src)
-
-    return netid
-end)
-
-lib.callback.register('randol_pizzajob:server:getLocation', function(source)
-    if WORKERS[source] then return false end
-
-    local src = source
     local newDelivery = Server.Locations[math.random(#Server.Locations)]
 
     WORKERS[src] = {
+        entity = NetworkGetEntityFromNetworkId(netid),
         location = newDelivery,
         payment = math.random(Server.Payout.min, Server.Payout.max),
     }
 
-    return newDelivery
+    return netid, WORKERS[src]
 end)
 
-lib.callback.register('randol_pizzajob:server:clockOut', function(source, netid)
+lib.callback.register('randol_pizzajob:server:clockOut', function(source)
     local src = source
     if WORKERS[src] then
-        WORKERS[src] = nil
-        local ent = NetworkGetEntityFromNetworkId(netid)
+        local ent = WORKERS[src].entity
         if DoesEntityExist(ent) and Entity(ent).state.pizzaCar then
             Entity(ent).state:set('pizzaCar', nil, true)
             DeleteEntity(ent)
         end
+        WORKERS[src] = nil
         return true
     end
     return false
@@ -77,19 +70,37 @@ lib.callback.register('randol_pizzajob:server:Payment', function(source)
     end
     Player.Functions.AddMoney('bank', WORKERS[src].payment)	
     TriggerClientEvent("QBCore:Notify", src, "You received $"..WORKERS[src].payment..". Please wait for your next delivery!", "success")
-    WORKERS[src] = nil
+
+    local newDelivery = Server.Locations[math.random(#Server.Locations)]
+    WORKERS[src].location = newDelivery
+    WORKERS[src].payment = math.random(Server.Payout.min, Server.Payout.max)
+
+    CreateThread(function()
+        Wait(5000)
+        TriggerClientEvent("randol_pizajob:client:generatedLocation", src, WORKERS[src])
+    end)
     return true
 end)
 
 AddEventHandler("playerDropped", function()
     local src = source
     if WORKERS[src] then
+        local ent = WORKERS[src].entity
+        if DoesEntityExist(ent) and Entity(ent).state.pizzaCar then
+            Entity(ent).state:set('pizzaCar', nil, true)
+            DeleteEntity(ent)
+        end
         WORKERS[src] = nil
     end
 end)
 
 RegisterNetEvent('QBCore:Server:OnPlayerUnload', function(source)
     if WORKERS[source] then
+        local ent = WORKERS[src].entity
+        if DoesEntityExist(ent) and Entity(ent).state.pizzaCar then
+            Entity(ent).state:set('pizzaCar', nil, true)
+            DeleteEntity(ent)
+        end
         WORKERS[source] = nil
     end
 end)
