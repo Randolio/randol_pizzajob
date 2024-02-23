@@ -5,15 +5,16 @@ author 'Randolio'
 description 'Reworked Pizza Job for QBCore.'
 
 shared_scripts {
+    'shared.lua',
     '@ox_lib/init.lua',
 }
 
 server_scripts {
-    'cl_pizzajob.lua'
+    'sv_pizzajob.lua'
 }
 
 client_scripts {
-    'sv_pizzajob.lua'
+    'cl_pizzajob.lua'
 }
 
 lua54 'yes'

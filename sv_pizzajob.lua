@@ -1,4 +1,4 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+local Config = lib.require('shared')
 local WORKERS = {}
 local PIZZA_PAYOUT = { min = 105, max = 135, }
 local PIZZA_LOCATIONS = { -- Random delivery houses.
@@ -40,23 +40,53 @@ local function ExploitPizza(id, reason)
 	DropPlayer(id, 'You were banned from the server for exploiting.')
 end
 
-lib.callback.register('randol_pizzajob:server:getLocation', function(source)
+local function createPizzaVehicle(source)
+    local veh = CreateVehicleServerSetter(Config.Vehicle, 'automobile', Config.VehicleSpawn.x, Config.VehicleSpawn.y, Config.VehicleSpawn.z, Config.VehicleSpawn.w)
+    local ped = GetPlayerPed(source)
+
+    while not DoesEntityExist(veh) do Wait(10) end 
+
+    while GetVehiclePedIsIn(ped, false) ~= veh do
+        TaskWarpPedIntoVehicle(ped, veh, -1)
+        Wait(100)
+    end
+
+	Entity(veh).state:set('pizzaCar', true, true)
+    return NetworkGetNetworkIdFromEntity(veh)
+end
+
+lib.callback.register('randol_pizzajob:server:spawnVehicle', function(source)
+	if WORKERS[source] then return false end
+
 	local src = source
-	if not WORKERS[src] then
-		local newDelivery = PIZZA_LOCATIONS[math.random(#PIZZA_LOCATIONS)]
-		WORKERS[src] = {
-			location = newDelivery,
-			payment = math.random(PIZZA_PAYOUT.min, PIZZA_PAYOUT.max),
-		}
-		return newDelivery
-	end
-	return false
+	local netid = createPizzaVehicle(src)
+
+	return netid
 end)
 
-lib.callback.register('randol_pizzajob:server:clockOut', function(source)
+lib.callback.register('randol_pizzajob:server:getLocation', function(source)
+	if WORKERS[source] then return false end
+
+	local src = source
+	local newDelivery = PIZZA_LOCATIONS[math.random(#PIZZA_LOCATIONS)]
+
+	WORKERS[src] = {
+		location = newDelivery,
+		payment = math.random(PIZZA_PAYOUT.min, PIZZA_PAYOUT.max),
+	}
+
+	return newDelivery
+end)
+
+lib.callback.register('randol_pizzajob:server:clockOut', function(source, netid)
 	local src = source
 	if WORKERS[src] then
 		WORKERS[src] = nil
+		local ent = NetworkGetEntityFromNetworkId(netid)
+		if DoesEntityExist(ent) and Entity(ent).state.pizzaCar then
+			Entity(ent).state:set('pizzaCar', nil, true)
+			DeleteEntity(ent)
+		end
 		return true
 	end
 	return false

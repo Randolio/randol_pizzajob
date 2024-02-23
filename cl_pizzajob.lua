@@ -1,18 +1,10 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+local Config = lib.require('shared')
 local Hired = false
 local HasPizza = false
 local Delivered = false
 local PizzaDelivered = false
 local ownsVan = false
 local activeOrder = false
-local PizzaConfig = {
-    BossModel = `u_m_y_party_01`,
-    BossCoords = vector4(538.35, 101.8, 95.54, 164.05), -- The Blip also uses these coords.
-    Vehicle = `surge`,
-    VehicleSpawn = vector4(535.3, 95.58, 96.32, 159.15),
-}
-
-DecorRegister("pizza_job", 1)
 
 local function doEmote(emote)
     TriggerEvent('animations:client:EmoteCommandStart', {emote}) -- Adapt to whatever emote resource you use.
@@ -35,28 +27,27 @@ local function TakePizza()
     end
 end
 
-local function PullOutVehicle()
-    if ownsVan then
-        QBCore.Functions.Notify("You already have a work vehicle! Go and collect it or end your job.", "error")
-        return
-    end
-    local coords = PizzaConfig.VehicleSpawn
-    QBCore.Functions.SpawnVehicle(PizzaConfig.Vehicle, function(pizzaCar)
-        SetVehicleNumberPlateText(pizzaCar, "PIZZA"..tostring(math.random(1000, 9999)))
-        SetVehicleColours(pizzaCar, 111, 111)
-        SetVehicleDirtLevel(pizzaCar, 1)
-        DecorSetFloat(pizzaCar, "pizza_job", 1)
-        TaskWarpPedIntoVehicle(cache.ped, pizzaCar, -1)
-        TriggerEvent("vehiclekeys:client:SetOwner", GetVehicleNumberPlateText(pizzaCar))
-        SetVehicleEngineOn(pizzaCar, true, true)
-        SetVehicleFuelLevel(pizzaCar, 100)
-        tempVeh = pizzaCar
-    end, coords, true)
+local function PullOutVehicle(netid)
+    local pizzaCar = lib.waitFor(function()
+        if NetworkDoesEntityExistWithNetworkId(netid) then
+            return NetToVeh(netid)
+        end
+    end, 'Could not load entity in time.', 1000)
+
+    SetVehicleNumberPlateText(pizzaCar, "PIZZA"..tostring(math.random(1000, 9999)))
+    SetVehicleColours(pizzaCar, 111, 111)
+    SetVehicleDirtLevel(pizzaCar, 1)
+    TriggerEvent("vehiclekeys:client:SetOwner", GetVehicleNumberPlateText(pizzaCar))
+    SetVehicleEngineOn(pizzaCar, true, true)
     Hired = true
-    ownsVan = true
     NextDelivery()
     Wait(500)
-    exports['qb-target']:AddTargetEntity(tempVeh, {
+    if Config.FuelScript.enable then
+        exports[Config.FuelScript.script]:SetFuel(pizzaCar, 100.0)
+    else
+        Entity(pizzaCar).state.fuel = 100
+    end
+    exports['qb-target']:AddTargetEntity(pizzaCar, {
         options = {
             {
                 icon = "fa-solid fa-pizza-slice",
@@ -75,28 +66,23 @@ end
 local function finishWork()
     local ped = cache.ped
     local pos = GetEntityCoords(ped)
+
+    local finishspot = vector3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)
+    if #(pos - finishspot) > 10.0 or not Hired then return end
+
     local veh = GetPlayersLastVehicle()
-    local finishspot = vector3(PizzaConfig.BossCoords.x, PizzaConfig.BossCoords.y, PizzaConfig.BossCoords.z)
-    if #(pos - finishspot) < 10.0 then
-        if Hired then
-            if DecorExistOn((veh), "pizza_job") then
-                QBCore.Functions.DeleteVehicle(veh)
-            end
-            RemoveBlip(JobBlip)
-            Hired = false
-            HasPizza = false
-            ownsVan = false
-            activeOrder = false
-            lib.callback.await('randol_pizzajob:server:clockOut', false)
-            QBCore.Functions.Notify("You ended your shift.", "success")
-        end
-    end
+    RemoveBlip(JobBlip)
+    Hired = false
+    HasPizza = false
+    activeOrder = false
+    lib.callback.await('randol_pizzajob:server:clockOut', false, NetworkGetNetworkIdFromEntity(veh))
+    QBCore.Functions.Notify("You ended your shift.", "success")
 end
 
 local function PizzaClockIn()
     if DoesEntityExist(pizzaBoss) then return end
-    lib.requestModel(PizzaConfig.BossModel, 1000)
-    pizzaBoss = CreatePed(0, PizzaConfig.BossModel, PizzaConfig.BossCoords, false, false)
+    lib.requestModel(Config.BossModel, 1000)
+    pizzaBoss = CreatePed(0, Config.BossModel, Config.BossCoords, false, false)
     SetEntityAsMissionEntity(pizzaBoss)
     SetPedFleeAttributes(pizzaBoss, 0, 0)
     SetBlockingOfNonTemporaryEvents(pizzaBoss, true)
@@ -110,7 +96,10 @@ local function PizzaClockIn()
                 icon = "fa-solid fa-pizza-slice",
                 label = "Start Work",
                 action = function()
-                    PullOutVehicle()
+                    local netid = lib.callback.await('randol_pizzajob:server:spawnVehicle', false)
+                    if netid then
+                        PullOutVehicle(netid)
+                    end
                 end,
                 canInteract = function()
                     return not Hired
@@ -129,7 +118,7 @@ local function PizzaClockIn()
         }, 
         distance = 1.5, 
     })
-    local pizzajobBlip = AddBlipForCoord(vector3(PizzaConfig.BossCoords.x, PizzaConfig.BossCoords.y, PizzaConfig.BossCoords.z)) 
+    local pizzajobBlip = AddBlipForCoord(vector3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)) 
     SetBlipSprite(pizzajobBlip, 267)
     SetBlipAsShortRange(pizzajobBlip, true)
     SetBlipScale(pizzajobBlip, 0.6)
@@ -170,44 +159,41 @@ local function deliverPizza()
 end
 
 function NextDelivery()
-    if not activeOrder then
-        newDelivery = lib.callback.await('randol_pizzajob:server:getLocation', false)
-        JobBlip = AddBlipForCoord(newDelivery.x, newDelivery.y, newDelivery.z)
-        SetBlipSprite(JobBlip, 1)
-        SetBlipDisplay(JobBlip, 4)
-        SetBlipScale(JobBlip, 0.8)
-        SetBlipFlashes(JobBlip, true)
-        SetBlipAsShortRange(JobBlip, true)
-        SetBlipColour(JobBlip, 2)
-        SetBlipRoute(JobBlip, true)
-        SetBlipRouteColour(JobBlip, 2)
-        BeginTextCommandSetBlipName("STRING")
-        AddTextComponentSubstringPlayerName("Next Customer")
-        EndTextCommandSetBlipName(JobBlip)
-        exports['qb-target']:AddCircleZone("deliverZone", vector3(newDelivery.x, newDelivery.y, newDelivery.z), 1.3,{
-            name = "deliverZone", 
-            debugPoly = false, 
-            useZ=true, 
-        }, { options = {
-            { 
-                icon = "fa-solid fa-pizza-slice", 
-                label = "Deliver Pizza",
-                action = function() 
-                    deliverPizza()
-                end,
-            },}, 
-            distance = 1.5 
-        })
-        activeOrder = true
-        QBCore.Functions.Notify("You have a new delivery!", "success")
-    end
+    if activeOrder then return end
+    newDelivery = lib.callback.await('randol_pizzajob:server:getLocation', false)
+    JobBlip = AddBlipForCoord(newDelivery.x, newDelivery.y, newDelivery.z)
+    SetBlipSprite(JobBlip, 1)
+    SetBlipDisplay(JobBlip, 4)
+    SetBlipScale(JobBlip, 0.8)
+    SetBlipFlashes(JobBlip, true)
+    SetBlipAsShortRange(JobBlip, true)
+    SetBlipColour(JobBlip, 2)
+    SetBlipRoute(JobBlip, true)
+    SetBlipRouteColour(JobBlip, 2)
+    BeginTextCommandSetBlipName("STRING")
+    AddTextComponentSubstringPlayerName("Next Customer")
+    EndTextCommandSetBlipName(JobBlip)
+    exports['qb-target']:AddCircleZone("deliverZone", vector3(newDelivery.x, newDelivery.y, newDelivery.z), 1.3,{
+        name = "deliverZone", 
+        debugPoly = false, 
+        useZ=true, 
+    }, { options = {
+        { 
+            icon = "fa-solid fa-pizza-slice", 
+            label = "Deliver Pizza",
+            action = function() 
+                deliverPizza()
+            end,
+        },}, 
+        distance = 1.5 
+    })
+    activeOrder = true
+    QBCore.Functions.Notify("You have a new delivery!", "success")
 end
 
 AddEventHandler('onResourceStart', function(resource)
-    if GetCurrentResourceName() == resource then
-        PlayerJob = QBCore.Functions.GetPlayerData().job
-        PizzaClockIn()
-    end
+    if GetCurrentResourceName() ~= resource then return end
+    PizzaClockIn()
 end)
 
 RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
