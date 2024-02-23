@@ -10,6 +10,7 @@ shared_scripts {
 }
 
 server_scripts {
+    'sv_config.lua',
     'sv_pizzajob.lua'
 }
 

@@ -1,29 +1,38 @@
 local Config = lib.require('shared')
-local Hired = false
-local HasPizza = false
+local isHired = false
+local holdingPizza = false
 local Delivered = false
-local PizzaDelivered = false
+local pizzaDelivered = false
 local activeOrder = false
 
 local function doEmote(emote)
     TriggerEvent('animations:client:EmoteCommandStart', {emote}) -- Adapt to whatever emote resource you use.
 end
 
+local function resetJob()
+    exports['qb-target']:RemoveZone("deliverZone")
+    RemoveBlip(JobBlip)
+    isHired = false
+    holdingPizza = false
+    Delivered = false
+    pizzaDelivered = false
+    activeOrder = false
+    DeletePed(pizzaBoss)  
+end
+
 local function TakePizza()
-    local player = cache.ped
-    local pos = GetEntityCoords(player)
-    if not IsPedInAnyVehicle(player, false) then
-        if DoesEntityExist(player) and not IsEntityDead(player) then
-            if not HasPizza then
-                if #(pos - vector3(newDelivery.x, newDelivery.y, newDelivery.z)) < 30.0 then
-                    doEmote("carrypizza")
-                    HasPizza = true
-                else
-                    QBCore.Functions.Notify("You're not close enough to the customer's house!", "error")
-                end
-            end
-        end
+    if IsPedInAnyVehicle(cache.ped, false) or not DoesEntityExist(cache.ped) or IsEntityDead(cache.ped) or holdingPizza then
+        return
     end
+    
+    local pos = GetEntityCoords(cache.ped)
+
+    if #(pos - vec3(newDelivery.x, newDelivery.y, newDelivery.z)) >= 30.0 then
+        return QBCore.Functions.Notify("You're not close enough to the customer's house!", "error")
+    end
+    
+    doEmote("carrypizza")
+    holdingPizza = true
 end
 
 local function PullOutVehicle(netid)
@@ -33,12 +42,16 @@ local function PullOutVehicle(netid)
         end
     end, 'Could not load entity in time.', 1000)
 
+    if pizzaCar == 0 then
+        return QBCore.Functions.Notify("Error spawning the vehicle.", "error")
+    end
+
     SetVehicleNumberPlateText(pizzaCar, "PIZZA"..tostring(math.random(1000, 9999)))
     SetVehicleColours(pizzaCar, 111, 111)
     SetVehicleDirtLevel(pizzaCar, 1)
     TriggerEvent("vehiclekeys:client:SetOwner", GetVehicleNumberPlateText(pizzaCar))
     SetVehicleEngineOn(pizzaCar, true, true)
-    Hired = true
+    isHired = true
     NextDelivery()
     Wait(500)
     if Config.FuelScript.enable then
@@ -53,7 +66,7 @@ local function PullOutVehicle(netid)
                 label = "Take Pizza",
                 action = function(entity) TakePizza() end,
                 canInteract = function() 
-                    return Hired and activeOrder and not HasPizza
+                    return isHired and activeOrder and not holdingPizza
                 end,
                 
             },
@@ -66,20 +79,19 @@ local function finishWork()
     local ped = cache.ped
     local pos = GetEntityCoords(ped)
 
-    local finishspot = vector3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)
-    if #(pos - finishspot) > 10.0 or not Hired then return end
+    local finishspot = vec3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)
+    if #(pos - finishspot) > 10.0 or not isHired then return end
 
     local veh = GetPlayersLastVehicle()
     RemoveBlip(JobBlip)
-    Hired = false
-    HasPizza = false
-    activeOrder = false
+    isHired, holdingPizza, activeOrder = false, false, false
     lib.callback.await('randol_pizzajob:server:clockOut', false, NetworkGetNetworkIdFromEntity(veh))
     QBCore.Functions.Notify("You ended your shift.", "success")
 end
 
 local function PizzaClockIn()
     if DoesEntityExist(pizzaBoss) then return end
+    
     lib.requestModel(Config.BossModel, 1000)
     pizzaBoss = CreatePed(0, Config.BossModel, Config.BossCoords, false, false)
     SetEntityAsMissionEntity(pizzaBoss)
@@ -101,7 +113,7 @@ local function PizzaClockIn()
                     end
                 end,
                 canInteract = function()
-                    return not Hired
+                    return not isHired
                 end,
             },
             {
@@ -111,13 +123,13 @@ local function PizzaClockIn()
                     finishWork()
                 end,
                 canInteract = function()
-                    return Hired
+                    return isHired
                 end,
             },
         }, 
         distance = 1.5, 
     })
-    local pizzajobBlip = AddBlipForCoord(vector3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)) 
+    local pizzajobBlip = AddBlipForCoord(vec3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)) 
     SetBlipSprite(pizzajobBlip, 267)
     SetBlipAsShortRange(pizzajobBlip, true)
     SetBlipScale(pizzajobBlip, 0.6)
@@ -128,10 +140,10 @@ local function PizzaClockIn()
 end
 
 local function deliverPizza()
-    if HasPizza and Hired and not PizzaDelivered then
+    if holdingPizza and isHired and not pizzaDelivered then
         lib.requestAnimDict('timetable@jimmy@doorknock@', 1000)
         TaskPlayAnim(cache.ped, 'timetable@jimmy@doorknock@', 'knockdoor_idle', 3.0, 1.0, -1, 49, 0, true, true, true)
-        PizzaDelivered = true
+        pizzaDelivered = true
         QBCore.Functions.Progressbar("knock", "Delivering pizza", 7000, false, false, {
             disableMovement = true,
             disableCarMovement = true,
@@ -143,9 +155,9 @@ local function deliverPizza()
                 Wait(100)
                 RemoveBlip(JobBlip)
                 exports['qb-target']:RemoveZone("deliverZone")
-                HasPizza = false
+                holdingPizza = false
                 activeOrder = false
-                PizzaDelivered = false
+                pizzaDelivered = false
                 doEmote("c")
                 SetTimeout(5000, function()    
                     NextDelivery()
@@ -159,6 +171,7 @@ end
 
 function NextDelivery()
     if activeOrder then return end
+
     newDelivery = lib.callback.await('randol_pizzajob:server:getLocation', false)
     JobBlip = AddBlipForCoord(newDelivery.x, newDelivery.y, newDelivery.z)
     SetBlipSprite(JobBlip, 1)
@@ -172,7 +185,7 @@ function NextDelivery()
     BeginTextCommandSetBlipName("STRING")
     AddTextComponentSubstringPlayerName("Next Customer")
     EndTextCommandSetBlipName(JobBlip)
-    exports['qb-target']:AddCircleZone("deliverZone", vector3(newDelivery.x, newDelivery.y, newDelivery.z), 1.3,{
+    exports['qb-target']:AddCircleZone("deliverZone", vec3(newDelivery.x, newDelivery.y, newDelivery.z), 1.3,{
         name = "deliverZone", 
         debugPoly = false, 
         useZ=true, 
@@ -200,25 +213,10 @@ RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
 end)
 
 RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
-    exports['qb-target']:RemoveZone("deliverZone")
-    RemoveBlip(JobBlip)
-    Hired = false
-    HasPizza = false
-    Delivered = false
-    PizzaDelivered = false
-    activeOrder = false  
-    DeletePed(pizzaBoss)
+    resetJob()
 end)
 
 AddEventHandler('onResourceStop', function(resourceName) 
-    if GetCurrentResourceName() == resourceName then
-        exports['qb-target']:RemoveZone("deliverZone")
-        RemoveBlip(JobBlip)
-        Hired = false
-        HasPizza = false
-        Delivered = false
-        PizzaDelivered = false
-        activeOrder = false
-        DeletePed(pizzaBoss)  
-    end 
+    if GetCurrentResourceName() ~= resourceName then return end
+    resetJob()
 end)
