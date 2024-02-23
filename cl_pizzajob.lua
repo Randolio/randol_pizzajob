@@ -3,7 +3,6 @@ local Hired = false
 local HasPizza = false
 local Delivered = false
 local PizzaDelivered = false
-local ownsVan = false
 local activeOrder = false
 
 local function doEmote(emote)
@@ -207,21 +206,19 @@ RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
     HasPizza = false
     Delivered = false
     PizzaDelivered = false
-    ownsVan = false
     activeOrder = false  
     DeletePed(pizzaBoss)
 end)
 
 AddEventHandler('onResourceStop', function(resourceName) 
-	if GetCurrentResourceName() == resourceName then
+    if GetCurrentResourceName() == resourceName then
         exports['qb-target']:RemoveZone("deliverZone")
         RemoveBlip(JobBlip)
         Hired = false
         HasPizza = false
         Delivered = false
         PizzaDelivered = false
-        ownsVan = false
         activeOrder = false
         DeletePed(pizzaBoss)  
-	end 
+    end 
 end)
