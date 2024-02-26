@@ -76,10 +76,10 @@ lib.callback.register('randol_pizzajob:server:Payment', function(source)
         WORKERS[src] = nil
         Wait(5000)
         WORKERS[src] = {
-        entity = vehicle,
-        location = Server.Locations[math.random(#Server.Locations)],
-        payment = math.random(Server.Payout.min, Server.Payout.max),
-    }
+            entity = vehicle,
+            location = Server.Locations[math.random(#Server.Locations)],
+            payment = math.random(Server.Payout.min, Server.Payout.max),
+        }
         TriggerClientEvent("randol_pizajob:client:generatedLocation", src, WORKERS[src])
     end)
     return true
