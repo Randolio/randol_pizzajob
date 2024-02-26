@@ -71,12 +71,15 @@ lib.callback.register('randol_pizzajob:server:Payment', function(source)
     Player.Functions.AddMoney('bank', WORKERS[src].payment)	
     TriggerClientEvent("QBCore:Notify", src, "You received $"..WORKERS[src].payment..". Please wait for your next delivery!", "success")
 
-    local newDelivery = Server.Locations[math.random(#Server.Locations)]
-    WORKERS[src].location = newDelivery
-    WORKERS[src].payment = math.random(Server.Payout.min, Server.Payout.max)
-
     CreateThread(function()
+        local vehicle = WORKERS[src].entity
+        WORKERS[src] = nil
         Wait(5000)
+        WORKERS[src] = {
+        entity = vehicle,
+        location = Server.Locations[math.random(#Server.Locations)],
+        payment = math.random(Server.Payout.min, Server.Payout.max),
+    }
         TriggerClientEvent("randol_pizajob:client:generatedLocation", src, WORKERS[src])
     end)
     return true
