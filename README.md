@@ -1,9 +1,9 @@
 ## Randolio: Pizza Delivery Job
 
-Forked From MrEvilGamer - https://github.com/MrEvilGamer/qb-pizzajob
+**ESX/QB supported with bridge.**
 
-Requirements: https://github.com/overextended/ox_lib/releases/tag/v3.16.2
+Requirements: https://github.com/overextended/ox_lib/releases
 
 Reworked by Randolio.
 
-Last updated: 22/01/2024
+Last updated: 26/01/2024

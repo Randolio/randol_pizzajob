@@ -1,4 +1,6 @@
 return {
+    Timeout = 5000,
+    Account = 'cash',
     Payout = {min = 105, max = 135},
     Locations = { -- Random delivery houses.
         vec3(224.11, 513.52, 140.92),
