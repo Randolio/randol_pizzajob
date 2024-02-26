@@ -2,6 +2,15 @@ local Config = lib.require('config')
 local isHired, holdingPizza, pizzaDelivered, activeOrder = false, false, false, false
 local pizzaProp, pizzaBoss, startZone
 
+local pizzajobBlip = AddBlipForCoord(vec3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)) 
+SetBlipSprite(pizzajobBlip, 267)
+SetBlipAsShortRange(pizzajobBlip, true)
+SetBlipScale(pizzajobBlip, 0.6)
+SetBlipColour(pizzajobBlip, 2)
+BeginTextCommandSetBlipName('STRING')
+AddTextComponentString('Pizza Job')
+EndTextCommandSetBlipName(pizzajobBlip)
+
 local function doEmote(bool)
     if bool then
         local model = `prop_pizza_box_02`
@@ -165,14 +174,6 @@ local function spawnPed()
         }, 
         distance = 1.5, 
     })
-    local pizzajobBlip = AddBlipForCoord(vec3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)) 
-    SetBlipSprite(pizzajobBlip, 267)
-    SetBlipAsShortRange(pizzajobBlip, true)
-    SetBlipScale(pizzajobBlip, 0.6)
-    SetBlipColour(pizzajobBlip, 2)
-    BeginTextCommandSetBlipName('STRING')
-    AddTextComponentString('Pizza Job')
-    EndTextCommandSetBlipName(pizzajobBlip)
 end
 
 local function deliverPizza()
