@@ -21,13 +21,31 @@ lib.callback.register('randol_pizzajob:server:spawnVehicle', function(source)
     local src = source
     local netid = createPizzaVehicle(src)
 
-    local newDelivery = Server.Locations[math.random(#Server.Locations)]
+    local generatedLocs = {}
+    local addedLocs = {}
+    
+    while #generatedLocs < Server.Deliveries do
+        local index = math.random(#Server.Locations)
+
+        if not addedLocs[index] then
+            local randomLoc = Server.Locations[index]
+            generatedLocs[#generatedLocs + 1] = randomLoc
+            addedLocs[index] = true
+        end
+    end
+    
+
+    local currentLocIndex = math.random(#generatedLocs)
+    local currentLoc = generatedLocs[currentLocIndex]
+    table.remove(generatedLocs, currentLocIndex)
+
     local payout = math.random(Server.Payout.min, Server.Payout.max)
 
     players[src] = {
         entity = NetworkGetEntityFromNetworkId(netid),
-        location = newDelivery,
+        locations = generatedLocs,
         payment = payout,
+        current = currentLoc,
     }
 
     return netid, players[src]
@@ -51,33 +69,30 @@ lib.callback.register('randol_pizzajob:server:Payment', function(source)
     local Player = GetPlayer(src)
     local pos = GetEntityCoords(GetPlayerPed(src))
 
-    if not players[src] or #(pos - players[src].location) > 10.0 then
+    if not players[src] or #(pos - players[src].current) > 5.0 then
         handleExploit(src, 'Exploiting Pizza Job.')
         return false
     end
     
-    AddMoney(Player, Server.Account, players[src].payment)	
-    DoNotification(src, ('You received $%s. Please wait for your next delivery!'):format(players[src].payment), "success")
+    AddMoney(Player, Server.Account, players[src].payment)
 
-    CreateThread(function()
-        local vehicle = players[src].entity
-        players[src] = nil
+    if #players[src].locations == 0 then
+        DoNotification(src, ('You received $%s. No more deliveries left, return the vehicle.'):format(players[src].payment))
+        return true
+    else
+        DoNotification(src, ('You received $%s. Deliveries left: %s'):format(players[src].payment, #players[src].locations))
+    end
 
-        Wait(Server.Timeout)
+    local index = math.random(#players[src].locations)
+    local newLoc = players[src].locations[index]
+    table.remove(players[src].locations, index)
 
-        local newDelivery = Server.Locations[math.random(#Server.Locations)]
-        local payout = math.random(Server.Payout.min, Server.Payout.max)
+    local payout = math.random(Server.Payout.min, Server.Payout.max)
 
-        players[src] = {
-            entity = vehicle,
-            location = newDelivery,
-            payment = payout,
-        }
+    players[src].current = newLoc
+    players[src].payment = payout
 
-        TriggerClientEvent("randol_pizajob:client:generatedLocation", src, players[src])
-    end)
-
-    return true
+    return true, players[src]
 end)
 
 AddEventHandler("playerDropped", function()

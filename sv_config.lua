@@ -1,5 +1,5 @@
 return {
-    Timeout = 5000,
+    Deliveries = 10, -- 
     Account = 'cash',
     Payout = {min = 105, max = 135},
     Locations = { -- Random delivery houses.

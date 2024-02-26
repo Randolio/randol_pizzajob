@@ -189,14 +189,16 @@ local function deliverPizza()
             canCancel = false,
             disable = { move = true, car = true, mouse = false, combat = true, },
         }) then
-            local success = lib.callback.await('randol_pizzajob:server:Payment', false)
-            if success then
-                RemoveBlip(JobBlip)
-                exports['qb-target']:RemoveZone('deliverZone')
-                holdingPizza = false
-                activeOrder = false
-                pizzaDelivered = false
-                doEmote(false)
+            local success, data = lib.callback.await('randol_pizzajob:server:Payment', false)
+            if not success then return end
+            RemoveBlip(JobBlip)
+            exports['qb-target']:RemoveZone('deliverZone')
+            holdingPizza = false
+            activeOrder = false
+            pizzaDelivered = false
+            doEmote(false)
+            if data then
+                NextDelivery(data)
             end
         end
     else
@@ -206,8 +208,7 @@ end
 
 function NextDelivery(data)
     if activeOrder then return end
-
-    currentDelivery = data.location
+    currentDelivery = data.current
     JobBlip = AddBlipForCoord(currentDelivery.x, currentDelivery.y, currentDelivery.z)
     SetBlipSprite(JobBlip, 1)
     SetBlipDisplay(JobBlip, 4)
@@ -254,11 +255,6 @@ end
 function OnPlayerUnload()
     resetJob()
 end
-
-RegisterNetEvent('randol_pizajob:client:generatedLocation', function(data)
-    if GetInvokingResource() or not data then return end
-    NextDelivery(data)
-end)
 
 AddEventHandler('onResourceStart', function(resource)
     if GetCurrentResourceName() ~= resource or not hasPlyLoaded() then return end

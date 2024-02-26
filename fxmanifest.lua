@@ -5,7 +5,7 @@ author 'Randolio'
 description 'Reworked Pizza Job for ESX/QB.'
 
 shared_scripts {
-    'shared.lua',
+    'config.lua',
     '@ox_lib/init.lua',
 }
 
