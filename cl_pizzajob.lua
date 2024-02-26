@@ -1,4 +1,4 @@
-local Config = lib.require('shared')
+local Config = lib.require('config')
 local isHired, holdingPizza, pizzaDelivered, activeOrder = false, false, false, false
 local pizzaProp, pizzaBoss, startZone
 
