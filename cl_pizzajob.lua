@@ -1,6 +1,6 @@
 local Config = lib.require('config')
 local isHired, holdingPizza, pizzaDelivered, activeOrder = false, false, false, false
-local pizzaProp, pizzaBoss, startZone
+local pizzaProp, pizzaBoss, startZone, pizzaCar
 
 local pizzajobBlip = AddBlipForCoord(vec3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)) 
 SetBlipSprite(pizzajobBlip, 267)
@@ -22,11 +22,14 @@ local function doEmote(bool)
         TaskPlayAnim(cache.ped, 'anim@heists@box_carry@', 'idle', 5.0, 5.0, -1, 51, 0, 0, 0, 0)
         SetModelAsNoLongerNeeded(model)
     else
-        DetachEntity(cache.ped, true, false)
-        DeleteEntity(pizzaProp)
-        pizzaProp = nil
-        ClearPedTasksImmediately(cache.ped)
+        if DoesEntityExist(pizzaProp) then
+            DetachEntity(cache.ped, true, false)
+            DeleteEntity(pizzaProp)
+            pizzaProp = nil
+            ClearPedTasksImmediately(cache.ped)
+        end
     end
+    holdingPizza = bool
 end
 
 local function resetJob()
@@ -37,7 +40,7 @@ local function resetJob()
     pizzaDelivered = false
     activeOrder = false
     if DoesEntityExist(pizzaBoss) then
-        exports['qb-target']:RemoveTargetEntity(pizzaBoss, {'Take Pizza', 'Return Pizza'})
+        exports['qb-target']:RemoveTargetEntity(pizzaBoss, {'Start Work', 'Finish Work'})
         DeleteEntity(pizzaBoss)
         pizzaBoss = nil
     end
@@ -56,11 +59,10 @@ local function TakePizza()
     end
     
     doEmote(true)
-    holdingPizza = true
 end
 
 local function PullOutVehicle(netid, data)
-    local pizzaCar = lib.waitFor(function()
+    pizzaCar = lib.waitFor(function()
         if NetworkDoesEntityExistWithNetworkId(netid) then
             return NetToVeh(netid)
         end
@@ -101,7 +103,6 @@ local function PullOutVehicle(netid, data)
                 label = 'Return Pizza',
                 action = function(entity) 
                     doEmote(false)
-                    holdingPizza = false
                 end,
                 canInteract = function() 
                     return isHired and activeOrder and holdingPizza
@@ -120,15 +121,21 @@ local function finishWork()
     local finishspot = vec3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)
     if #(pos - finishspot) > 10.0 or not isHired then return end
 
-    RemoveBlip(JobBlip)
-    isHired, holdingPizza, activeOrder = false, false, false
-    lib.callback.await('randol_pizzajob:server:clockOut', false)
-    DoNotification('You ended your shift.', 'success')
+    local success = lib.callback.await('randol_pizzajob:server:clockOut', false)
+    if success then
+        RemoveBlip(JobBlip)
+        doEmote(false)
+        isHired, activeOrder = false, false
+        lib.callback.await('randol_pizzajob:server:clockOut', false)
+        DoNotification('You ended your shift.', 'success')
+        exports['qb-target']:RemoveTargetEntity(pizzaCar, {'Take Pizza', 'Return Pizza'})
+        pizzaCar = nil
+    end
 end
 
 local function yeetPed()
     if DoesEntityExist(pizzaBoss) then
-        exports['qb-target']:RemoveTargetEntity(pizzaBoss, {'Take Pizza', 'Return Pizza'})
+        exports['qb-target']:RemoveTargetEntity(pizzaBoss, {'Start Work', 'Finish Work'})
         DeleteEntity(pizzaBoss)
         pizzaBoss = nil
     end
@@ -193,7 +200,6 @@ local function deliverPizza()
             if not success then return end
             RemoveBlip(JobBlip)
             exports['qb-target']:RemoveZone('deliverZone')
-            holdingPizza = false
             activeOrder = false
             pizzaDelivered = false
             doEmote(false)
