@@ -79,15 +79,13 @@ lib.callback.register('randol_pizzajob:server:Payment', function(source)
     if #players[src].locations == 0 then
         DoNotification(src, ('You received $%s. No more deliveries left, return the vehicle.'):format(players[src].payment))
         return true
-    else
-        DoNotification(src, ('You received $%s. Deliveries left: %s'):format(players[src].payment, #players[src].locations))
     end
-
+    
+    DoNotification(src, ('You received $%s. Deliveries left: %s'):format(players[src].payment, #players[src].locations))
     local index = math.random(#players[src].locations)
     local newLoc = players[src].locations[index]
-    table.remove(players[src].locations, index)
-
     local payout = math.random(Server.Payout.min, Server.Payout.max)
+    table.remove(players[src].locations, index)
 
     players[src].current = newLoc
     players[src].payment = payout
