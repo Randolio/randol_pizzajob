@@ -21,6 +21,14 @@ local function doEmote(bool)
         lib.requestAnimDict('anim@heists@box_carry@', 2000)
         TaskPlayAnim(cache.ped, 'anim@heists@box_carry@', 'idle', 5.0, 5.0, -1, 51, 0, 0, 0, 0)
         SetModelAsNoLongerNeeded(model)
+        CreateThread(function()
+            while DoesEntityExist(pizzaProp) do
+                if not IsEntityPlayingAnim(cache.ped, 'anim@heists@box_carry@', 'idle', 3) then
+                    TaskPlayAnim(cache.ped, 'anim@heists@box_carry@', 'idle', 5.0, 5.0, -1, 51, 0, 0, 0, 0)
+                end
+                Wait(1000)
+            end
+        end)
     else
         if DoesEntityExist(pizzaProp) then
             DetachEntity(cache.ped, true, false)
