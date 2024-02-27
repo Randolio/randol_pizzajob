@@ -4,7 +4,7 @@
 
 Requirements: https://github.com/overextended/ox_lib/releases
 
-Preview: https://streamable.com/4ljqec
+Preview: https://streamable.com/j4mgv7
 
 **Changes** - Last updated: 26/01/2024
 
