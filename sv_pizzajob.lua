@@ -5,11 +5,11 @@ local function createPizzaVehicle(source)
     local veh = CreateVehicleServerSetter(Server.Vehicle, 'automobile', Server.VehicleSpawn.x, Server.VehicleSpawn.y, Server.VehicleSpawn.z, Server.VehicleSpawn.w)
     local ped = GetPlayerPed(source)
 
-    while not DoesEntityExist(veh) do Wait(10) end 
+    while not DoesEntityExist(veh) do Wait(0) end 
 
     while GetVehiclePedIsIn(ped, false) ~= veh do
         TaskWarpPedIntoVehicle(ped, veh, -1)
-        Wait(100)
+        Wait(0)
     end
 
     return NetworkGetNetworkIdFromEntity(veh)
