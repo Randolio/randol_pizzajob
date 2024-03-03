@@ -2,7 +2,7 @@ local Server = lib.require('sv_config')
 local players = {}
 
 local function createPizzaVehicle(source)
-    local veh = CreateVehicleServerSetter(Server.Vehicle, 'automobile', Server.VehicleSpawn.x, Server.VehicleSpawn.y, Server.VehicleSpawn.z, Server.VehicleSpawn.w)
+    local veh = CreateVehicle(Server.Vehicle, Server.VehicleSpawn.x, Server.VehicleSpawn.y, Server.VehicleSpawn.z, Server.VehicleSpawn.w, true, true)
     local ped = GetPlayerPed(source)
 
     while not DoesEntityExist(veh) do Wait(0) end 
