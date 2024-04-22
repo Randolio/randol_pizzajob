@@ -14,11 +14,11 @@ EndTextCommandSetBlipName(pizzajobBlip)
 local function doEmote(bool)
     if bool then
         local model = `prop_pizza_box_02`
-        lib.requestModel(model, 2000)
+        lib.requestModel(model)
         local coords = GetEntityCoords(cache.ped)
         pizzaProp = CreateObject(model, coords.x, coords.y, coords.z, true, true, true)
         AttachEntityToEntity(pizzaProp, cache.ped, GetPedBoneIndex(cache.ped, 28422), 0.0100,-0.1000, -0.1590, 20.0000007, 0.0, 0.0, true, true, false, true, 0, true)
-        lib.requestAnimDict('anim@heists@box_carry@', 2000)
+        lib.requestAnimDict('anim@heists@box_carry@')
         TaskPlayAnim(cache.ped, 'anim@heists@box_carry@', 'idle', 5.0, 5.0, -1, 51, 0, 0, 0, 0)
         SetModelAsNoLongerNeeded(model)
         CreateThread(function()
@@ -28,6 +28,7 @@ local function doEmote(bool)
                 end
                 Wait(1000)
             end
+            RemoveAnimDict('anim@heists@box_carry@')
         end)
     else
         if DoesEntityExist(pizzaProp) then
@@ -152,15 +153,18 @@ end
 local function spawnPed()
     if DoesEntityExist(pizzaBoss) then return end
     
-    lib.requestModel(Config.BossModel, 1000)
+    lib.requestModel(Config.BossModel)
     pizzaBoss = CreatePed(0, Config.BossModel, Config.BossCoords, false, false)
     SetEntityAsMissionEntity(pizzaBoss)
     SetPedFleeAttributes(pizzaBoss, 0, 0)
     SetBlockingOfNonTemporaryEvents(pizzaBoss, true)
     SetEntityInvincible(pizzaBoss, true)
     FreezeEntityPosition(pizzaBoss, true)
-    lib.requestAnimDict('amb@world_human_leaning@female@wall@back@holding_elbow@idle_a', 1000)        
+    lib.requestAnimDict('amb@world_human_leaning@female@wall@back@holding_elbow@idle_a')        
     TaskPlayAnim(pizzaBoss, 'amb@world_human_leaning@female@wall@back@holding_elbow@idle_a', 'idle_a', 8.0, 1.0, -1, 01, 0, 0, 0, 0)
+    RemoveAnimDict('amb@world_human_leaning@female@wall@back@holding_elbow@idle_a')
+    SetModelAsNoLongerNeeded(Config.BossModel)
+
     exports['qb-target']:AddTargetEntity(pizzaBoss, { 
         options = {
             {
@@ -193,8 +197,9 @@ end
 
 local function deliverPizza()
     if holdingPizza and isHired and not pizzaDelivered then
-        lib.requestAnimDict('timetable@jimmy@doorknock@', 1000)
+        lib.requestAnimDict('timetable@jimmy@doorknock@')
         TaskPlayAnim(cache.ped, 'timetable@jimmy@doorknock@', 'knockdoor_idle', 3.0, 1.0, -1, 49, 0, true, true, true)
+        RemoveAnimDict('timetable@jimmy@doorknock@')
         pizzaDelivered = true
         if lib.progressCircle({
             duration = 7000,
