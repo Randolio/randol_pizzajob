@@ -1,6 +1,7 @@
 local Config = lib.require('config')
 local isHired, holdingPizza, pizzaDelivered, activeOrder = false, false, false, false
-local pizzaProp, pizzaBoss, startZone, pizzaCar
+local pizzaProp, pizzaBoss, startZone, pizzaCar, currZone
+local oxtarget = GetResourceState('ox_target') == 'started'
 
 local pizzajobBlip = AddBlipForCoord(vec3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)) 
 SetBlipSprite(pizzajobBlip, 267)
@@ -42,14 +43,23 @@ local function doEmote(bool)
 end
 
 local function resetJob()
-    exports['qb-target']:RemoveZone('deliverZone')
+    if oxtarget then
+        exports.ox_target:removeZone(currZone)
+    else
+        exports['qb-target']:RemoveZone(currZone)
+    end
+    currZone = nil
     RemoveBlip(JobBlip)
     isHired = false
     holdingPizza = false
     pizzaDelivered = false
     activeOrder = false
     if DoesEntityExist(pizzaBoss) then
-        exports['qb-target']:RemoveTargetEntity(pizzaBoss, {'Start Work', 'Finish Work'})
+        if oxtarget then
+            exports.ox_target:removeLocalEntity(pizzaBoss, {'Start Work', 'Finish Work'})
+        else
+            exports['qb-target']:RemoveTargetEntity(pizzaBoss, {'Start Work', 'Finish Work'})
+        end
         DeleteEntity(pizzaBoss)
         pizzaBoss = nil
     end
@@ -94,33 +104,57 @@ local function PullOutVehicle(netid, data)
     else
         Entity(pizzaCar).state.fuel = 100
     end
-    exports['qb-target']:AddTargetEntity(pizzaCar, {
-        options = {
+
+    if oxtarget then
+        exports.ox_target:addEntity(netid, {
             {
                 icon = 'fa-solid fa-pizza-slice',
                 label = 'Take Pizza',
-                action = function(entity) 
-                    TakePizza() 
-                end,
+                onSelect = TakePizza,
                 canInteract = function() 
                     return isHired and activeOrder and not holdingPizza
                 end,
-                
+                distance = 2.5
             },
             {
                 icon = 'fa-solid fa-pizza-slice',
                 label = 'Return Pizza',
-                action = function(entity) 
+                onSelect = function(entity) 
                     doEmote(false)
                 end,
                 canInteract = function() 
                     return isHired and activeOrder and holdingPizza
                 end,
-                
+                distance = 2.5
             },
-        },
-        distance = 2.5
-    })
+        })
+    else
+        exports['qb-target']:AddTargetEntity(pizzaCar, {
+            options = {
+                {
+                    icon = 'fa-solid fa-pizza-slice',
+                    label = 'Take Pizza',
+                    action = TakePizza,
+                    canInteract = function() 
+                        return isHired and activeOrder and not holdingPizza
+                    end,
+                    
+                },
+                {
+                    icon = 'fa-solid fa-pizza-slice',
+                    label = 'Return Pizza',
+                    action = function(entity) 
+                        doEmote(false)
+                    end,
+                    canInteract = function() 
+                        return isHired and activeOrder and holdingPizza
+                    end,
+                    
+                },
+            },
+            distance = 2.5
+        })
+    end
 end
 
 local function finishWork()
@@ -130,21 +164,29 @@ local function finishWork()
     local finishspot = vec3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)
     if #(pos - finishspot) > 10.0 or not isHired then return end
 
+    if oxtarget then
+        exports.ox_target:removeEntity(NetworkGetNetworkIdFromEntity(pizzaCar), {'Take Pizza', 'Return Pizza'})
+    else
+        exports['qb-target']:RemoveTargetEntity(pizzaCar, {'Take Pizza', 'Return Pizza'})
+    end
+
     local success = lib.callback.await('randol_pizzajob:server:clockOut', false)
     if success then
         RemoveBlip(JobBlip)
         doEmote(false)
         isHired, activeOrder = false, false
-        lib.callback.await('randol_pizzajob:server:clockOut', false)
         DoNotification('You ended your shift.', 'success')
-        exports['qb-target']:RemoveTargetEntity(pizzaCar, {'Take Pizza', 'Return Pizza'})
         pizzaCar = nil
     end
 end
 
 local function yeetPed()
     if DoesEntityExist(pizzaBoss) then
-        exports['qb-target']:RemoveTargetEntity(pizzaBoss, {'Start Work', 'Finish Work'})
+        if oxtarget then
+            exports.ox_target:removeLocalEntity(pizzaBoss, {'Start Work', 'Finish Work'})
+        else
+            exports['qb-target']:RemoveTargetEntity(pizzaBoss, {'Start Work', 'Finish Work'})
+        end
         DeleteEntity(pizzaBoss)
         pizzaBoss = nil
     end
@@ -165,12 +207,12 @@ local function spawnPed()
     RemoveAnimDict('amb@world_human_leaning@female@wall@back@holding_elbow@idle_a')
     SetModelAsNoLongerNeeded(Config.BossModel)
 
-    exports['qb-target']:AddTargetEntity(pizzaBoss, { 
-        options = {
+    if oxtarget then
+        exports.ox_target:addLocalEntity(pizzaBoss, {
             {
                 icon = 'fa-solid fa-pizza-slice',
                 label = 'Start Work',
-                action = function()
+                onSelect = function()
                     local netid, data = lib.callback.await('randol_pizzajob:server:spawnVehicle', false)
                     if netid and data then
                         PullOutVehicle(netid, data)
@@ -179,20 +221,44 @@ local function spawnPed()
                 canInteract = function()
                     return not isHired
                 end,
+                distance = 1.5,
             },
             {
                 icon = 'fa-solid fa-pizza-slice',
                 label = 'Finish Work',
-                action = function()
-                    finishWork()
-                end,
+                onSelect = finishWork,
                 canInteract = function()
                     return isHired
                 end,
+                distance = 1.5, 
             },
-        }, 
-        distance = 1.5, 
-    })
+        })
+    else
+        exports['qb-target']:AddTargetEntity(pizzaBoss, { 
+            options = {
+                {
+                    icon = 'fa-solid fa-pizza-slice',
+                    label = 'Start Work',
+                    action = function()
+                        local netid, data = lib.callback.await('randol_pizzajob:server:spawnVehicle', false)
+                        if netid and data then
+                            PullOutVehicle(netid, data)
+                        end
+                    end,
+                    canInteract = function()
+                        return not isHired
+                    end,
+                },
+                {
+                    icon = 'fa-solid fa-pizza-slice',
+                    label = 'Finish Work',
+                    action = finishWork,
+                    canInteract = function() return isHired end,
+                },
+            }, 
+            distance = 1.5, 
+        })
+    end
 end
 
 local function deliverPizza()
@@ -212,7 +278,12 @@ local function deliverPizza()
             local success, data = lib.callback.await('randol_pizzajob:server:Payment', false)
             if not success then return end
             RemoveBlip(JobBlip)
-            exports['qb-target']:RemoveZone('deliverZone')
+            if oxtarget then
+                exports.ox_target:removeZone(currZone)
+            else
+                exports['qb-target']:RemoveZone(currZone)
+            end
+            currZone = nil
             activeOrder = false
             pizzaDelivered = false
             doEmote(false)
@@ -240,20 +311,36 @@ function NextDelivery(data)
     BeginTextCommandSetBlipName('STRING')
     AddTextComponentSubstringPlayerName('Next Customer')
     EndTextCommandSetBlipName(JobBlip)
-    exports['qb-target']:AddCircleZone('deliverZone', vec3(currentDelivery.x, currentDelivery.y, currentDelivery.z), 1.3,{
-        name = 'deliverZone', 
-        debugPoly = false, 
-        useZ=true, 
-    }, { options = {
-        { 
-            icon = 'fa-solid fa-pizza-slice', 
-            label = 'Deliver Pizza',
-            action = function() 
-                deliverPizza()
-            end,
-        },}, 
-        distance = 1.5 
-    })
+    if oxtarget then
+        currZone = exports.ox_target:addSphereZone({
+            coords = vec3(currentDelivery.x, currentDelivery.y, currentDelivery.z),
+            radius = 1.3,
+            debug = false,
+            options = {
+                {
+                    icon = 'fa-solid fa-pizza-slice', 
+                    label = 'Deliver Pizza',
+                    onSelect = deliverPizza,
+                    distance = 1.5,
+                },
+                
+            }
+        })
+    else
+        exports['qb-target']:AddCircleZone('deliverZone', vec3(currentDelivery.x, currentDelivery.y, currentDelivery.z), 1.3,{
+            name = 'deliverZone', 
+            debugPoly = false, 
+            useZ=true, 
+        }, { options = {
+            { 
+                icon = 'fa-solid fa-pizza-slice', 
+                label = 'Deliver Pizza',
+                action = deliverPizza,
+            },}, 
+            distance = 1.5 
+        })
+        currZone = 'deliverZone'
+    end
     activeOrder = true
     DoNotification('You have a new delivery!', 'success')
 end
