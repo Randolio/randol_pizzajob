@@ -1,4 +1,4 @@
-if GetResourceState('qb-core') ~= 'started' then return end
+if GetResourceState('qb-core') ~= 'started' or GetResourceState('qbx_core') == 'started' then return end
 
 local QBCore = exports['qb-core']:GetCoreObject()
 

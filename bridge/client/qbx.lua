@@ -1,6 +1,4 @@
-if GetResourceState('qb-core') ~= 'started' or GetResourceState('qbx_core') == 'started' then return end
-
-local QBCore = exports['qb-core']:GetCoreObject()
+if GetResourceState('qbx_core') ~= 'started' then return end
 
 RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
     OnPlayerLoaded()
@@ -19,5 +17,5 @@ function hasPlyLoaded()
 end
 
 function DoNotification(text, nType)
-    QBCore.Functions.Notify(text, nType)
+    exports.qbx_core:Notify(text, nType)
 end
