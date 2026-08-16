@@ -2,8 +2,10 @@ local Config = lib.require('config')
 local isHired, holdingPizza, pizzaDelivered, activeOrder = false, false, false, false
 local pizzaProp, pizzaBoss, startZone, pizzaCar, currZone
 local oxtarget = GetResourceState('ox_target') == 'started'
+local animDict = 'anim@scripted@freemode@ig9_pizza@male@'
+local pizzaModel = `prop_pizza_box_01`
 
-local pizzajobBlip = AddBlipForCoord(vec3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z)) 
+local pizzajobBlip = AddBlipForCoord(vec3(Config.BossCoords.x, Config.BossCoords.y, Config.BossCoords.z))
 SetBlipSprite(pizzajobBlip, 267)
 SetBlipAsShortRange(pizzajobBlip, true)
 SetBlipScale(pizzajobBlip, 0.6)
@@ -14,32 +16,91 @@ EndTextCommandSetBlipName(pizzajobBlip)
 
 local function doEmote(bool)
     if bool then
-        local model = `prop_pizza_box_02`
-        lib.requestModel(model)
+        lib.requestModel(pizzaModel)
         local coords = GetEntityCoords(cache.ped)
-        pizzaProp = CreateObject(model, coords.x, coords.y, coords.z, true, true, true)
-        AttachEntityToEntity(pizzaProp, cache.ped, GetPedBoneIndex(cache.ped, 28422), 0.0100,-0.1000, -0.1590, 20.0000007, 0.0, 0.0, true, true, false, true, 0, true)
-        lib.requestAnimDict('anim@heists@box_carry@')
-        TaskPlayAnim(cache.ped, 'anim@heists@box_carry@', 'idle', 5.0, 5.0, -1, 51, 0, 0, 0, 0)
-        SetModelAsNoLongerNeeded(model)
-        CreateThread(function()
-            while DoesEntityExist(pizzaProp) do
-                if not IsEntityPlayingAnim(cache.ped, 'anim@heists@box_carry@', 'idle', 3) then
-                    TaskPlayAnim(cache.ped, 'anim@heists@box_carry@', 'idle', 5.0, 5.0, -1, 51, 0, 0, 0, 0)
-                end
-                Wait(1000)
-            end
-            RemoveAnimDict('anim@heists@box_carry@')
-        end)
+        pizzaProp = CreateObject(pizzaModel, coords.x, coords.y, coords.z, true, true, true)
+        AttachEntityToEntity(pizzaProp, cache.ped, GetPedBoneIndex(cache.ped, 28422), 0.0100, -0.1000, -0.1590, 20.0000007, 0.0, 0.0, true, true, false, true, 0, true)
+        lib.playAnim(cache.ped, 'anim@heists@box_carry@', 'idle', 5.0, 5.0, -1, 51, 0, 0, 0, 0)
+        SetModelAsNoLongerNeeded(pizzaModel)
     else
         if DoesEntityExist(pizzaProp) then
-            DetachEntity(cache.ped, true, false)
+            DetachEntity(pizzaProp, true, false)
             DeleteEntity(pizzaProp)
             pizzaProp = nil
             ClearPedTasksImmediately(cache.ped)
         end
     end
     holdingPizza = bool
+end
+
+local function getPosRelHeading(root, forwardOffset, sideOffset)
+    local heading = math.rad(root.w)
+    local forwardX = math.cos(heading)
+    local forwardY = math.sin(heading)
+    local rightX = -math.sin(heading)
+    local rightY = math.cos(heading)
+
+    return vec3(root.x + (forwardX * forwardOffset) + (rightX * sideOffset), root.y + (forwardY * forwardOffset) + (rightY * sideOffset), root.z)
+end
+
+local function initScene(rootCoords, side)
+    local isHeeled = not IsPedMale(cache.ped)
+    local animPlayer = isHeeled and 'action_01_heeled' or 'action_01_player'
+    local animPizza = 'action_01_pizza'
+    local animCam = side == 'left' and 'action_01_cam_alt' or 'action_01_cam'
+
+    if not DoesEntityExist(pizzaProp) then return false end
+
+    lib.requestAnimDict(animDict)
+
+    local scenePos = getPosRelHeading(rootCoords, Config.offsetF,  Config.offsetS)
+    local sceneHeading = rootCoords.w +  Config.offsetH
+
+    DetachEntity(pizzaProp, true, true)
+    ClearPedTasksImmediately(cache.ped)
+    SetEntityCoordsNoOffset(pizzaProp, scenePos.x, scenePos.y, scenePos.z, false, false, false)
+    SetEntityCollision(pizzaProp, false, false)
+    SetEntityAsMissionEntity(pizzaProp, true, true)
+
+    local scene = NetworkCreateSynchronisedScene(scenePos.x, scenePos.y, scenePos.z, 0.0, 0.0, sceneHeading, 2, false, false, 1.0, 0.0, 1.0 )
+
+    NetworkAddPedToSynchronisedScene(cache.ped, scene, animDict, animPlayer, 1000.0, -1000.0, 5, 0, 1000.0, 0)
+    NetworkAddEntityToSynchronisedScene(pizzaProp, scene, animDict, animPizza, 1000.0, -1000.0, 5)
+
+    local cam = CreateCam('DEFAULT_ANIMATED_CAMERA', true)
+    PlayCamAnim(cam, animCam, animDict, scenePos.x, scenePos.y, scenePos.z, 0.0, 0.0, sceneHeading, false, 2)
+
+    NetworkStartSynchronisedScene(scene)
+    RenderScriptCams(true, false, 3000, true, false)
+    FreezeEntityPosition(cache.ped, true)
+
+    local duration = 6000
+    local endTime = GetGameTimer() + duration
+
+    while GetGameTimer() < endTime do
+        Wait(0)
+        DisableAllControlActions(0)
+        DisableAllControlActions(1)
+        DisableAllControlActions(2)
+    end
+
+    FreezeEntityPosition(cache.ped, false)
+    ClearPedTasks(cache.ped)
+
+    RenderScriptCams(false, true, 1000, true, false)
+    if DoesCamExist(cam) then
+        DestroyCam(cam, false)
+    end
+
+    if DoesEntityExist(pizzaProp) then
+        DeleteEntity(pizzaProp)
+        pizzaProp = nil
+    end
+    holdingPizza = false
+
+    RemoveAnimDict(animDict)
+
+    return true
 end
 
 local function resetJob()
@@ -54,6 +115,10 @@ local function resetJob()
     holdingPizza = false
     pizzaDelivered = false
     activeOrder = false
+    if DoesEntityExist(pizzaProp) then
+        DeleteEntity(pizzaProp)
+        pizzaProp = nil
+    end
     if DoesEntityExist(pizzaBoss) then
         if oxtarget then
             exports.ox_target:removeLocalEntity(pizzaBoss, {'Start Work', 'Finish Work'})
@@ -70,13 +135,13 @@ local function TakePizza()
     if IsPedInAnyVehicle(cache.ped, false) or IsEntityDead(cache.ped) or holdingPizza then
         return
     end
-    
+
     local pos = GetEntityCoords(cache.ped)
 
     if #(pos - vec3(currentDelivery.x, currentDelivery.y, currentDelivery.z)) >= 30.0 then
         return DoNotification('You\'re not close enough to the customer\'s house!', 'error')
     end
-    
+
     doEmote(true)
 end
 
@@ -111,7 +176,7 @@ local function PullOutVehicle(netid, data)
                 icon = 'fa-solid fa-pizza-slice',
                 label = 'Take Pizza',
                 onSelect = TakePizza,
-                canInteract = function() 
+                canInteract = function()
                     return isHired and activeOrder and not holdingPizza
                 end,
                 distance = 2.5
@@ -119,10 +184,10 @@ local function PullOutVehicle(netid, data)
             {
                 icon = 'fa-solid fa-pizza-slice',
                 label = 'Return Pizza',
-                onSelect = function(entity) 
+                onSelect = function()
                     doEmote(false)
                 end,
-                canInteract = function() 
+                canInteract = function()
                     return isHired and activeOrder and holdingPizza
                 end,
                 distance = 2.5
@@ -135,21 +200,19 @@ local function PullOutVehicle(netid, data)
                     icon = 'fa-solid fa-pizza-slice',
                     label = 'Take Pizza',
                     action = TakePizza,
-                    canInteract = function() 
+                    canInteract = function()
                         return isHired and activeOrder and not holdingPizza
                     end,
-                    
                 },
                 {
                     icon = 'fa-solid fa-pizza-slice',
                     label = 'Return Pizza',
-                    action = function(entity) 
+                    action = function()
                         doEmote(false)
                     end,
-                    canInteract = function() 
+                    canInteract = function()
                         return isHired and activeOrder and holdingPizza
                     end,
-                    
                 },
             },
             distance = 2.5
@@ -194,7 +257,7 @@ end
 
 local function spawnPed()
     if DoesEntityExist(pizzaBoss) then return end
-    
+
     lib.requestModel(Config.BossModel)
     pizzaBoss = CreatePed(0, Config.BossModel, Config.BossCoords, false, false)
     SetEntityAsMissionEntity(pizzaBoss)
@@ -202,9 +265,7 @@ local function spawnPed()
     SetBlockingOfNonTemporaryEvents(pizzaBoss, true)
     SetEntityInvincible(pizzaBoss, true)
     FreezeEntityPosition(pizzaBoss, true)
-    lib.requestAnimDict('amb@world_human_leaning@female@wall@back@holding_elbow@idle_a')        
-    TaskPlayAnim(pizzaBoss, 'amb@world_human_leaning@female@wall@back@holding_elbow@idle_a', 'idle_a', 8.0, 1.0, -1, 01, 0, 0, 0, 0)
-    RemoveAnimDict('amb@world_human_leaning@female@wall@back@holding_elbow@idle_a')
+    lib.playAnim(pizzaBoss, 'amb@world_human_leaning@female@wall@back@holding_elbow@idle_a', 'idle_a', 8.0, 1.0, -1, 01, 0, 0, 0, 0)
     SetModelAsNoLongerNeeded(Config.BossModel)
 
     if oxtarget then
@@ -230,11 +291,11 @@ local function spawnPed()
                 canInteract = function()
                     return isHired
                 end,
-                distance = 1.5, 
+                distance = 1.5,
             },
         })
     else
-        exports['qb-target']:AddTargetEntity(pizzaBoss, { 
+        exports['qb-target']:AddTargetEntity(pizzaBoss, {
             options = {
                 {
                     icon = 'fa-solid fa-pizza-slice',
@@ -255,28 +316,26 @@ local function spawnPed()
                     action = finishWork,
                     canInteract = function() return isHired end,
                 },
-            }, 
-            distance = 1.5, 
+            },
+            distance = 1.5,
         })
     end
 end
 
 local function deliverPizza()
     if holdingPizza and isHired and not pizzaDelivered then
-        lib.requestAnimDict('timetable@jimmy@doorknock@')
-        TaskPlayAnim(cache.ped, 'timetable@jimmy@doorknock@', 'knockdoor_idle', 3.0, 1.0, -1, 49, 0, true, true, true)
-        RemoveAnimDict('timetable@jimmy@doorknock@')
         pizzaDelivered = true
-        if lib.progressCircle({
-            duration = 7000,
-            position = 'bottom',
-            label = 'Delivering pizza',
-            useWhileDead = true,
-            canCancel = false,
-            disable = { move = true, car = true, mouse = false, combat = true, },
-        }) then
-            local success, data = lib.callback.await('randol_pizzajob:server:Payment', false)
-            if not success then return end
+
+        local side = math.random(2) == 1 and 'right' or 'left'
+        local success = initScene(currentDelivery, side)
+
+        if success then
+            local paid, data = lib.callback.await('randol_pizzajob:server:Payment', false)
+            if not paid then
+                pizzaDelivered = false
+                return
+            end
+
             RemoveBlip(JobBlip)
             if oxtarget then
                 exports.ox_target:removeZone(currZone)
@@ -286,13 +345,16 @@ local function deliverPizza()
             currZone = nil
             activeOrder = false
             pizzaDelivered = false
-            doEmote(false)
+
             if data then
                 NextDelivery(data)
             end
+        else
+            pizzaDelivered = false
+            DoNotification('Delivery scene failed to play.', 'error')
         end
     else
-        DoNotification('You need the pizza from the car dummy.', 'error') 
+        DoNotification('You need the pizza from the car dummy.', 'error')
     end
 end
 
@@ -318,26 +380,27 @@ function NextDelivery(data)
             debug = false,
             options = {
                 {
-                    icon = 'fa-solid fa-pizza-slice', 
+                    icon = 'fa-solid fa-pizza-slice',
                     label = 'Deliver Pizza',
                     onSelect = deliverPizza,
                     distance = 1.5,
                 },
-                
             }
         })
     else
-        exports['qb-target']:AddCircleZone('deliverZone', vec3(currentDelivery.x, currentDelivery.y, currentDelivery.z), 1.3,{
-            name = 'deliverZone', 
-            debugPoly = false, 
-            useZ=true, 
-        }, { options = {
-            { 
-                icon = 'fa-solid fa-pizza-slice', 
-                label = 'Deliver Pizza',
-                action = deliverPizza,
-            },}, 
-            distance = 1.5 
+        exports['qb-target']:AddCircleZone('deliverZone', vec3(currentDelivery.x, currentDelivery.y, currentDelivery.z), 1.3, {
+            name = 'deliverZone',
+            debugPoly = false,
+            useZ = true,
+        }, {
+            options = {
+                {
+                    icon = 'fa-solid fa-pizza-slice',
+                    label = 'Deliver Pizza',
+                    action = deliverPizza,
+                },
+            },
+            distance = 1.5
         })
         currZone = 'deliverZone'
     end
@@ -367,7 +430,7 @@ AddEventHandler('onResourceStart', function(resource)
     startJobPoint()
 end)
 
-AddEventHandler('onResourceStop', function(resourceName) 
+AddEventHandler('onResourceStop', function(resourceName)
     if GetCurrentResourceName() ~= resourceName then return end
     resetJob()
 end)

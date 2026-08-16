@@ -5,4 +5,7 @@ return {
         enable = false,
         script = 'LegacyFuel',
     },
+    offsetF = -0.6, -- Some of these might be a little off but I did my best ok.
+    offsetS = 0.2,
+    offsetH = -180.0,
 }

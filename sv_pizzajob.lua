@@ -69,7 +69,7 @@ lib.callback.register('randol_pizzajob:server:Payment', function(source)
     local Player = GetPlayer(src)
     local pos = GetEntityCoords(GetPlayerPed(src))
 
-    if not players[src] or #(pos - players[src].current) > 5.0 then
+    if not players[src] or #(pos - vec3(players[src].current.x, players[src].current.y, players[src].current.z)) > 5.0 then
         handleExploit(src, 'Exploiting Pizza Job.')
         return false
     end
